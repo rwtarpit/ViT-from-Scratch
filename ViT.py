@@ -81,10 +81,10 @@ class LayerNorm(nn.Module):
         return self.alpha * (x - mean) / (std + self.eps) + self.bias
     
 class ResidualConnection(nn.Module):
-    def __init__(self, dropout : float):
+    def __init__(self, D : int, dropout : float):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
-        self.norm = LayerNorm()
+        self.norm = LayerNorm(D)
 
     def forward(self, x, sublayer):
         return x + self.dropout(sublayer(self.norm(x)))
@@ -106,13 +106,13 @@ class EncoderBlock(nn.Module):
     def __init__(self, MSA : MultiHeadAttention, MLP : MLP, dropout : float, D : int )->None:
         super().__init__()
         self.MSA = MSA
-        self.norm = nn.ModuleList(LayerNorm(dim=D) for _ in range(2))
-        self.residual_conn = nn.ModuleList(ResidualConnection(dropout=dropout) for _ in range(2))
+        self.norm = nn.ModuleList(LayerNorm(D) for _ in range(2))
+        self.residual_conn = nn.ModuleList(ResidualConnection(dropout=dropout,D=D) for _ in range(2))
         self.MLP = MLP
         
     def forward(self, x):
-        x = self.residual_conn[0](x, lambda x_: self.MSA(self.norm[0](x_)))
-        x = self.residual_conn[1](x, lambda x_: self.MLP(self.norm[1](x_)))
+        x = self.residual_conn[0](x, lambda x: self.MSA(self.norm[0](x), self.norm[0](x), self.norm[0](x)))
+        x = self.residual_conn[1](x, lambda x: self.MSA(self.norm[0](x), self.norm[0](x), self.norm[0](x)))
         return x
     
 class Encoder(nn.Module):
@@ -160,7 +160,7 @@ def build_ViT(height : int, width : int, channel : int, patch_size: int, D : int
     for i in range(N):
         multi_head_attention = MultiHeadAttention(D,heads,dropout)
         mlp = MLP(D,hidden_layer,dropout)
-        encoder_ = EncoderBlock(multi_head_attention,mlp,dropout)
+        encoder_ = EncoderBlock(multi_head_attention,mlp,dropout,D)
         encoder_list.append(encoder_)
     encoder = Encoder(encoder_list)
     mlp_head = MLPHead(num_classes,D,hidden_layer,dropout)
