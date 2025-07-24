@@ -3,6 +3,7 @@ import torch
 from ViT import build_ViT
 import torch.optim as optim
 from data_and_preprocessing import trainloader, testloader
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch import amp
 from tqdm import tqdm
 
@@ -20,8 +21,10 @@ for_cifar={
 model = build_ViT(224,224,3,16,768,3072,12,10,0.1,12)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
+epochs = 100
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.AdamW(model.parameters(), lr=3e-4, weight_decay=0.01)
+scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
 
 def train_one_epoch(model, dataloader, criterion, optimizer):
     model.train()
@@ -68,13 +71,12 @@ def evaluate(model, dataloader, criterion):
 
     return running_loss / total, 100. * correct / total
 
-epochs = 10
 
 for epoch in range(epochs):
     print(f"\nEpoch {epoch + 1}/{epochs}")
     train_loss, train_acc = train_one_epoch(model, trainloader, criterion, optimizer)
     val_loss, val_acc = evaluate(model, testloader, criterion)
-
+    scheduler.step()
     print(f"Train Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
     print(f"Val   Loss: {val_loss:.4f}, Accuracy: {val_acc:.2f}%")
    
