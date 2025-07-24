@@ -17,7 +17,7 @@ for_cifar={
     }
 
 
-model = build_ViT(224,224,3,16,768,3072,12,10,0.1,12)
+model = build_ViT(32,32,3,4,192,384,6,10,0.1,3)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 criterion = nn.CrossEntropyLoss()
